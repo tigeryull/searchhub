@@ -118,7 +118,7 @@ const engines = [
   { name: "Anna's Archive", icon: "📗", category: "图书", api: null, desc: "开放学术资源聚合", pageUrl: (q) => `https://annas-archive.gl/search?q=${encodeURIComponent(q)}` },
 ];
 const categories = [...new Set(engines.map(e => e.category))];
-const catOrder = ["学术", "医学", "代码", "百科", "编程", "图书"];
+const catOrder = ["学术", "医学", "代码", "百科", "编程", "图书", "财经", "影视", "美食", "工具", "娱乐"];
 const state = {};
 
 const fetchers = {
