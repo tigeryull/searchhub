@@ -36,3 +36,6 @@ Search aggregation website with 19 engines.
 ### Books
 - Open Library
 - Anna's Archive
+
+## 部署配置
+- 必须包含 `<meta name="google-adsense-account" content="ca-pub-3081020651696497">` 在 `<head>` 中

@@ -2,24 +2,580 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="google-adsense-account" content="ca-pub-3081020651696497">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>搜索聚合</title>
+<title>SearchMax · 搜索聚合</title>
+<link rel="stylesheet" href="/tokens.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0e14;color:#e4e4e7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}
-.container{text-align:center}
-h1{font-size:48px;font-weight:300;margin-bottom:1rem;background:linear-gradient(135deg,#60a5fa,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-p{color:#94a3b8;margin-bottom:2rem}
-a{color:#3b82f6;text-decoration:none}
-a:hover{text-decoration:underline}
+.engine-card { background: var(--color-paper-2); border: var(--rule-fine) solid var(--color-rule); border-radius: 12px; padding: var(--space-lg); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: var(--space-2xs); transition: border-color var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out); cursor: default; overflow: hidden; }
+.engine-card:hover { border-color: var(--color-accent); transform: translateY(-2px); }
+.engine-icon { font-size: 1.5rem; line-height: 1; }
+.engine-name { font-family: var(--font-display); font-size: var(--text-md); font-weight: 600; color: var(--color-ink); letter-spacing: var(--tracking-tight); display: flex; align-items: center; gap: var(--space-xs); }
+.engine-desc { font-size: var(--text-sm); color: var(--color-muted); line-height: var(--lh-normal); }
+.engine-tag { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--color-accent); text-transform: uppercase; align-self: flex-start; }
+.cat-section { margin-top: var(--space-3xl); scroll-margin-top: 20px; }
+.cat-title { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-muted); margin-bottom: var(--space-lg); padding-bottom: var(--space-sm); border-bottom: var(--rule-hair) solid var(--color-rule); display: flex; align-items: center; gap: var(--space-sm); }
+.cat-count { background: var(--color-paper-3); color: var(--color-neutral); padding: 2px var(--space-xs); border-radius: 4px; font-size: var(--text-xs); }
+.engines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-md); }
+.cat-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-2xl); flex-wrap: wrap; padding: var(--space-lg) 0; }
+.cat-tab { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-muted); background: none; border: var(--rule-fine) solid var(--color-rule); padding: var(--space-xs) var(--space-md); cursor: pointer; transition: all var(--dur-short) var(--ease-out); border-radius: 4px; }
+.cat-tab:hover, .cat-tab.active { color: var(--color-accent); border-color: var(--color-accent); }
+.results-area { margin-top: var(--space-md); border-top: var(--rule-hair) solid var(--color-rule); padding-top: var(--space-md); display: none; max-height: 480px; overflow-y: auto; }
+.results-area.active { display: block; }
+.result-link { display: block; text-decoration: none; color: inherit; padding: var(--space-sm) 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
+.result-link:last-child { border-bottom: none; }
+.result-link:hover .r-title { color: var(--color-accent); }
+.r-title { font-size: var(--text-sm); font-weight: 600; color: var(--color-ink); line-height: var(--lh-snug); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.r-snippet { font-size: var(--text-xs); color: var(--color-neutral); line-height: var(--lh-normal); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: var(--space-xs); margin-top: var(--space-sm); padding-top: var(--space-sm); border-top: var(--rule-hair) solid var(--color-rule); }
+.page-btn { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); background: none; border: var(--rule-fine) solid var(--color-rule); color: var(--color-muted); padding: 2px var(--space-md); cursor: pointer; border-radius: 4px; transition: all var(--dur-short) var(--ease-out); }
+.page-btn:hover { color: var(--color-accent); border-color: var(--color-accent); }
+.page-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+.page-info { font-family: var(--font-label); font-size: var(--text-xs); color: var(--color-muted); }
+.card-loading { padding: var(--space-md) 0; text-align: center; font-family: var(--font-label); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: var(--tracking-label); }
+.card-loading::after { content: "..."; animation: dots 1.5s steps(4,end) infinite; }
+@keyframes dots { 0%,20%{content:""}40%{content:"."}60%{content:".."}80%,100%{content:"..."} }
+.card-error { padding: var(--space-md) 0; text-align: center; font-family: var(--font-label); font-size: var(--text-xs); color: var(--color-accent); letter-spacing: var(--tracking-label); }
+.card-empty { padding: var(--space-md) 0; text-align: center; font-family: var(--font-label); font-size: var(--text-xs); color: var(--color-muted); letter-spacing: var(--tracking-label); }
+.stats-strip { display: flex; gap: var(--space-3xl); justify-content: center; margin: var(--space-4xl) 0; padding: var(--space-2xl) 0; border-top: var(--rule-hair) solid var(--color-rule); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.stat { text-align: center; }
+.stat-value { font-family: var(--font-display); font-size: var(--text-3xl); font-weight: var(--display-weight); letter-spacing: var(--tracking-display); color: var(--color-accent); display: block; line-height: var(--lh-tight); }
+.stat-label { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-muted); margin-top: var(--space-2xs); display: block; }
+@media (max-width: 768px) { .engines-grid { grid-template-columns: 1fr; } .stats-strip { flex-direction: column; gap: var(--space-xl); } }
 </style>
 </head>
 <body>
-<div class="container">
-<h1>搜索聚合</h1>
-<p>整合 14 个搜索引擎，覆盖学术、代码、百科、图书</p>
-<p><a href="/?q=Python">搜索示例：Python</a></p>
-<p style="margin-top:2rem;font-size:14px">API: <a href="/api/search?q=测试">/api/search?q=关键词</a></p>
-</div>
+
+<header class="nav-mast">
+  <div class="mast-line">聚合检索 · 一站式搜索</div>
+  <h1 class="mast-name">SearchMax</h1>
+  <nav class="mast-nav"><ul><li><a href="#engines">引擎</a></li></ul></nav>
+  <hr class="mast-rule">
+</header>
+
+<main>
+  <section class="search-section" style="padding: var(--space-3xl) 0 var(--space-xl); text-align: center;">
+    <form id="searchForm" style="display: flex; gap: var(--space-xs); max-width: 640px; margin: 0 auto;">
+      <input type="text" id="searchInput" name="q" placeholder="输入关键词，回车搜索…"
+        style="flex:1; padding: var(--space-md) var(--space-lg); font-size: var(--text-base); background: var(--color-paper-2); color: var(--color-ink); border: var(--rule-fine) solid var(--color-rule-2); border-radius: 12px; font-family: var(--font-body); outline: none;"
+        onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor='var(--color-rule-2)'" autocomplete="off">
+      <button type="submit" style="padding: var(--space-md) var(--space-2xl); font-size: var(--text-base); background: var(--color-accent); color: white; border: none; border-radius: 12px; cursor: pointer; font-family: var(--font-label); letter-spacing: var(--tracking-label); text-transform: uppercase;">搜索</button>
+    </form>
+    <p style="margin-top: var(--space-md); color: var(--color-muted); font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label);">按回车搜索 · 点击卡片获取结果</p>
+  </section>
+
+  <section class="stats-strip" style="margin-top: var(--space-2xl);">
+    <div class="stat"><span class="stat-value">30</span><span class="stat-label">搜索引擎</span></div>
+    <div class="stat"><span class="stat-value">29</span><span class="stat-label">API 检索</span></div>
+    <div class="stat"><span class="stat-value">1</span><span class="stat-label">直接跳转</span></div>
+    <div class="stat"><span class="stat-value">0</span><span class="stat-label">广告追踪</span></div>
+  </section>
+
+  <div class="cat-tabs" id="catTabs"></div>
+  <section id="engines"><div id="enginesContainer"></div></section>
+</main>
+
+<footer class="foot-mast">
+  <span class="foot-wordmark">SearchMax</span>
+  <span class="foot-tagline">多源聚合 · 隐私优先 · 无广告</span> <span style="font-family:var(--font-label);font-size:var(--text-xs);color:var(--color-muted);letter-spacing:var(--tracking-label);margin-left:8px;">V0.1</span>
+  
+</footer>
+
+<script data-cfasync="false">
+const PAGESIZE = 3;
+const engines = [
+  { name: "Wikipedia", icon: "📚", category: "百科", api: "wikipedia", desc: "自由百科全书" },
+  { name: "arXiv", icon: "📐", category: "学术", api: "arxiv", desc: "物理数学计算机预印本" },
+  { name: "GitHub", icon: "🐙", category: "代码", api: "github", desc: "代码仓库与开源项目" },
+  { name: "GitHub Issues", icon: "⚠️", category: "代码", api: "githubissues", desc: "开源项目问题追踪" },
+  { name: "Stack Overflow", icon: "📋", category: "编程", api: "stackoverflow", desc: "编程问答社区" },
+  { name: "CrossRef", icon: "📄", category: "学术", api: "crossref", desc: "学术论文与DOI" },
+  { name: "PubMed", icon: "🏥", category: "医学", api: "pubmed", desc: "生物医学文献" },
+  { name: "Open Library", icon: "📕", category: "图书", api: "openlibrary", desc: "免费在线借阅图书馆" },
+  { name: "Wikibooks", icon: "📖", category: "百科", api: "wikibooks", desc: "开放教科书合集" },
+  { name: "Internet Archive", icon: "🌐", category: "百科", api: "internetarchive", desc: "网页与数字文献存档" },
+  { name: "Wikidata", icon: "🕸️", category: "百科", api: "wikidata", desc: "结构化知识数据库" },
+  { name: "ClinicalTrials", icon: "💊", category: "医学", api: "clinicaltrials", desc: "全球临床试验注册库" },
+  { name: "Europe PMC", icon: "🔬", category: "医学", api: "europepmc", desc: "欧洲生物医学文献中心" },
+  { name: "GitLab", icon: "🦊", category: "代码", api: "gitlab", desc: "Git 代码托管平台" },
+  { name: "Hacker News", icon: "🔥", category: "编程", api: "hackernews", desc: "硅谷顶级技术社区" },
+  { name: "Semantic Scholar", icon: "🧠", category: "学术", api: "semanticscholar", desc: "AI 驱动学术搜索" },
+  { name: "OpenAlex", icon: "📊", category: "学术", api: "openalex", desc: "开放学术索引 3400万+论文" },
+  { name: "DOAJ", icon: "📰", category: "学术", api: "doaj", desc: "开放获取期刊目录" },
+  { name: "DBLP", icon: "💻", category: "学术", api: "dblp", desc: "计算机科学文献库" },
+  { name: "PubMed Central", icon: "📑", category: "医学", api: "pubmedcentral", desc: "生物医学全文开源库" },
+  { name: "CoinGecko", icon: "🪙", category: "财经", api: "coingecko", desc: "加密货币行情搜索" },
+  { name: "TVMaze", icon: "📺", category: "影视", api: "tvmaze", desc: "美剧影视数据库" },
+  { name: "TheMealDB", icon: "🍳", category: "美食", api: "themealdb", desc: "全球食谱搜索" },
+  { name: "Dictionary", icon: "📖", category: "工具", api: "dictionary", desc: "英语词典定义查询" },
+  { name: "PokeAPI", icon: "⚡", category: "娱乐", api: "pokeapi", desc: "宝可梦图鉴搜索" },
+  { name: "JokeAPI", icon: "😄", category: "娱乐", api: "jokeapi", desc: "编程笑话随机获取" },
+  { name: "SWAPI", icon: "🚀", category: "影视", api: "swapi", desc: "星球大战宇宙数据" },
+  { name: "Open-Meteo", icon: "🌤️", category: "工具", api: "openmeteo", desc: "全球天气预报" },
+  { name: "Anna's Archive", icon: "📗", category: "图书", api: null, desc: "开放学术资源聚合", pageUrl: (q) => `https://annas-archive.gl/search?q=${encodeURIComponent(q)}` },
+];
+const categories = [...new Set(engines.map(e => e.category))];
+const catOrder = ["学术", "医学", "代码", "百科", "编程", "图书"];
+const state = {};
+
+const fetchers = {
+  async wikipedia(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=${PAGESIZE}&sroffset=${offset}&format=json&origin=*`);
+    const d = await r.json();
+    const total = d.query?.searchinfo?.totalhits || 0;
+    const results = (d.query?.search || []).map(s => ({ title: s.title, url: `https://en.wikipedia.org/wiki/${encodeURIComponent(s.title)}`, snippet: s.snippet ? s.snippet.replace(/<[^>]*>/g, "").slice(0, 160) : "" }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async arxiv(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(q)}&start=${offset}&max_results=${PAGESIZE}`);
+    const text = await r.text();
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    const entries = doc.getElementsByTagName("entry");
+    const total = parseInt(doc.getElementsByTagName("totalResults")[0]?.textContent || "0");
+    const results = Array.from(entries).map(e => ({
+      title: e.getElementsByTagName("title")[0].textContent.trim().replace(/\s+/g, " "),
+      url: e.getElementsByTagName("link")[0].getAttribute("href"),
+      snippet: e.getElementsByTagName("summary")[0].textContent.trim().slice(0, 160)
+    }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async github(q, page) {
+    const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=${PAGESIZE}&page=${page}`);
+    const d = await r.json();
+    const total = d.total_count || 0;
+    const results = (d.items || []).map(i => ({ title: i.full_name, url: i.html_url, snippet: (i.description || "").slice(0, 160) + (i.stargazers_count ? ` · ⭐ ${i.stargazers_count}` : "") }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async githubissues(q, page) {
+    const r = await fetch(`https://api.github.com/search/issues?q=${encodeURIComponent(q)}+in:issue&sort=created&order=desc&per_page=${PAGESIZE}&page=${page}`);
+    const d = await r.json();
+    const total = d.total_count || 0;
+    const results = (d.items || []).map(i => ({ title: `[${i.repository_url.split("/").pop()}] ${i.title}`, url: i.html_url, snippet: (i.body || "").replace(/<[^>]*>/g, "").slice(0, 160) }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async stackoverflow(q, page) {
+    const r = await fetch(`https://api.stackexchange.com/2.3/search/advanced?q=${encodeURIComponent(q)}&order=desc&sort=relevance&site=stackoverflow&limit=${PAGESIZE}&page=${page}`);
+    const d = await r.json();
+    const items = d.items || [];
+    const results = items.map(i => ({ title: i.title, url: i.link, snippet: (i.body_markdown || "").slice(0, 160) + ` · ⬆${i.score} · 💬${i.answer_count}` }));
+    return { results, total: items.length, pages: Math.ceil(items.length / PAGESIZE) };
+  },
+  async crossref(q, page) {
+    const r = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(q)}&select=title,author,DOI,abstract&rows=${PAGESIZE}&offset=${(page-1)*PAGESIZE}`);
+    const d = await r.json();
+    const total = d.message?.["total-results"] || 0;
+    const results = (d.message?.items || []).map(i => {
+      const authors = (i.author || []).map(a => (a.given || "") + " " + (a.family || "")).join(", ").slice(0, 80);
+      return { title: (i.title || [""])[0], url: i.DOI ? `https://doi.org/${i.DOI}` : "#", snippet: (i.abstract || "").replace(/<[^>]*>/g, "").slice(0, 160) + (authors ? ` · ${authors}` : "") };
+    }).filter(x => x.url !== "#");
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async pubmed(q, page) {
+    const r1 = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(q)}&retmax=${PAGESIZE}&retstart=${(page-1)*PAGESIZE}&retmode=json`);
+    const d1 = await r1.json();
+    const ids = d1.esearchresult?.idlist || [];
+    const total = parseInt(d1.esearchresult?.count || "0");
+    if (!ids.length) return { results: [], total, pages: 0 };
+    const r2 = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`);
+    const text = await r2.text();
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    const results = Array.from(doc.getElementsByTagName("PubmedArticle")).map(e => ({
+      title: e.getElementsByTagName("ArticleTitle")[0]?.textContent || "N/A",
+      url: `https://pubmed.ncbi.nlm.nih.gov/${e.getElementsByTagName("PMID")[0]?.textContent || ""}/`,
+      snippet: (e.getElementsByTagName("ArticleText")[0]?.textContent || "").slice(0, 160)
+    }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async openlibrary(q, page) {
+    const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${PAGESIZE}&page=${page}`);
+    const d = await r.json();
+    const total = d.numFound || 0;
+    const results = (d.docs || []).map(i => ({
+      title: i.title || "Untitled", url: `https://openlibrary.org${i.key || ""}`,
+      snippet: (i.first_sentence ? (Array.isArray(i.first_sentence) ? i.first_sentence[0] : i.first_sentence) : "").slice(0, 160)
+    }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async wikibooks(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://en.wikibooks.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=${PAGESIZE}&sroffset=${offset}&format=json&origin=*`);
+    const d = await r.json();
+    const total = d.query?.searchinfo?.totalhits || 0;
+    const results = (d.query?.search || []).map(s => ({ title: s.title, url: `https://en.wikibooks.org/wiki/${encodeURIComponent(s.title)}`, snippet: s.snippet ? s.snippet.replace(/<[^>]*>/g, "").slice(0, 160) : "" }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async internetarchive(q, page) {
+    const r = await fetch(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=title,identifier&rows=${PAGESIZE}&start=${(page-1)*PAGESIZE}&output=json`);
+    const d = await r.json();
+    const resp = d.response || {};
+    const total = resp.numFound || 0;
+    const results = (resp.docs || []).map(i => ({ title: i.title || "Untitled", url: `https://archive.org/details/${i.identifier}`, snippet: i.identifier }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async wikidata(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srnamespace=120&srlimit=${PAGESIZE}&sroffset=${offset}&format=json&origin=*`);
+    const d = await r.json();
+    const total = d.query?.searchinfo?.totalhits || 0;
+    const results = (d.query?.search || []).map(s => ({ title: s.title, url: `https://www.wikidata.org/wiki/${s.title}`, snippet: s.snippet ? s.snippet.replace(/<[^>]*>/g, "").slice(0, 160) : "" }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async clinicaltrials(q, page) {
+    const r = await fetch(`https://clinicaltrials.gov/api/v2/studies?query.term=${encodeURIComponent(q)}&pageSize=${PAGESIZE}&pageOffset=${(page-1)*PAGESIZE}&format=json`);
+    const d = await r.json();
+    const total = d.totalResults || 0;
+    const results = (d.studies || []).map(s => {
+      const id = s.protocolSection?.identificationModule?.nctId || "";
+      const title = s.protocolSection?.identificationModule?.briefTitle || "N/A";
+      const conditions = s.protocolSection?.conditionsModule?.conditions || [];
+      return { title, url: `https://clinicaltrials.gov/study/${id}`, snippet: conditions.join(", ").slice(0, 160) };
+    });
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async europepmc(q, page) {
+    const r = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(q)}&format=json&resultType=core&pageSize=${PAGESIZE}&offset=${(page-1)*PAGESIZE}`);
+    const d = await r.json();
+    const total = d.hitCount || 0;
+    const results = (d.resultList?.result || []).map(i => ({
+      title: i.title || i.shortTitle || "N/A",
+      url: i.pmCID ? `https://www.ebi.ac.uk/europepmc/website/stats/ebc/articles?acc=${i.pmCID}` : `https://pubmed.ncbi.nlm.nih.gov/${i.pmid}/`,
+      snippet: (i.abstractText || "").slice(0, 160)
+    }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async gitlab(q, page) {
+    const r = await fetch(`https://gitlab.com/api/v4/projects?search=${encodeURIComponent(q)}&per_page=${PAGESIZE}&page=${page}&simple=true`);
+    const d = await r.json();
+    if (!Array.isArray(d)) return { results: [], total: 0, pages: 0 };
+    const results = d.map(i => ({ title: i.full_name || i.path_with_namespace || i.name, url: i.web_url || i.http_url_to_repo, snippet: (i.description || "").slice(0, 160) + (i.star_count ? ` · ⭐ ${i.star_count}` : "") }));
+    return { results, total: results.length, pages: 1 };
+  },
+  async hackernews(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(q)}&tags=story&page=${page}&hitsPerPage=${PAGESIZE}`);
+    const d = await r.json();
+    const hits = d.hits || [];
+    const total = d.nbHits || 0;
+    const results = hits.map(h => ({
+      title: h.title || "N/A",
+      url: h.url || `https://news.ycombinator.com/item?id=${h.objectID}`,
+      snippet: `${h.points || 0} points · ${h.num_comments || 0} comments · by ${h.author || "anonymous"}`
+    }));
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+  async openalex(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=${PAGESIZE}&page=${page}&sort=cited_by_count&order=desc`);
+    const d = await r.json();
+    const results = (d.results || []).map(i => ({
+      title: i.display_name || i.title || "N/A",
+      url: i.doi ? `https://doi.org/${i.doi}` : `https://openalex.org/${i.id}`,
+      snippet: `${(i.authorships || []).map(a => (a.author || {}).display_name || "").slice(0, 2).join(", ")} · ${i.publication_date || ""} · ⭐${i.cited_by_count || 0}`
+    }));
+    return { results, total: d.meta?.count || 0, pages: Math.ceil((d.meta?.count || 0) / PAGESIZE) };
+  },
+  async doaj(q, page) {
+    const r = await fetch(`https://doaj.org/api/search/articles/v2?q=${encodeURIComponent(q)}&pageSize=${PAGESIZE}&page=${page}`);
+    const d = await r.json();
+    const results = (d.results || []).map(i => {
+      const bib = i.bibjson || {};
+      const doi = (bib.identifier || []).find(id => id.type === "doi")?.id || "";
+      const authors = (bib.author || []).slice(0, 2).map(a => a.name).join(", ");
+      return {
+        title: bib.title || "N/A",
+        url: doi ? `https://doi.org/${doi}` : "#",
+        snippet: `${bib.journal?.title || ""} (${bib.year || ""}) · ${authors}`
+      };
+    }).filter(x => x.url !== "#");
+    return { results, total: d.total || 0, pages: Math.ceil((d.total || 0) / PAGESIZE) };
+  },
+  async dblp(q, page) {
+    const r = await fetch(`https://dblp.org/search/publ/api?q=${encodeURIComponent(q)}&h=${PAGESIZE}&format=json`);
+    const d = await r.json();
+    const hits = d.result?.hits?.hit || [];
+    const results = hits.map(h => {
+      const info = h.info || {};
+      const title = (info.title || "").replace(/<i>/g, "").replace(/<\/i>/g, "");
+      return {
+        title,
+        url: info.url || `https://dblp.org/rec/${info.key || ""}`,
+        snippet: `${info.year || ""} · ${info.venue || ""} · ${((info.authors || {}).author || []).slice(0, 2).map(a => a.text || a).join(", ")}`
+      };
+    });
+    return { results, total: parseInt(d.result?.hits?.["@total"] || "0"), pages: Math.ceil(parseInt(d.result?.hits?.["@total"] || "0") / PAGESIZE) };
+  },
+  async pubmedcentral(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r1 = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pmc&term=${encodeURIComponent(q)}&retmax=${PAGESIZE}&retstart=${offset}&retmode=json`);
+    const d1 = await r1.json();
+    const ids = d1.esearchresult?.idlist || [];
+    const total = parseInt(d1.esearchresult?.count || "0");
+    if (!ids.length) return { results: [], total, pages: 0 };
+    const r2 = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=${ids.join(",")}&retmode=xml`);
+    const text = await r2.text();
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    const articles = doc.getElementsByTagName("article");
+    const results = Array.from(articles).slice(0, PAGESIZE).map(a => {
+      const title = a.getElementsByTagName("article-title")[0]?.textContent?.trim() || "N/A";
+      const pmid = a.getElementsByTagName("article-id")[0]?.textContent || "";
+      const yearEl = a.getElementsByTagName("year")[0];
+      const monthEl = a.getElementsByTagName("month")[0];
+      const year = yearEl?.textContent || "";
+      const month = monthEl?.textContent || "";
+      const authors = Array.from(a.getElementsByTagName("name")).slice(0, 2).map(n => n.textContent).join(", ");
+      return {
+        title,
+        url: `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmid}/`,
+        snippet: `${year} · ${authors}`
+      };
+    });
+    return { results, total, pages: Math.ceil(total / PAGESIZE) };
+  },
+    async coingecko(q, page) {
+    const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const coins = d.coins || [];
+    const results = coins.slice(0, PAGESIZE).map(c => ({
+      title: c.name || "N/A",
+      url: c.web_url || `https://www.coingecko.com/en/coins/${c.id}`,
+      snippet: `${c.symbol?.toUpperCase() || ""} · 排名 #${c.market_cap_rank || "?"}`
+    }));
+    return { results, total: results.length, pages: 1 };
+  },
+  async tvmaze(q, page) {
+    const r = await fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const results = d.slice(0, PAGESIZE).map(item => {
+      const s = item.show;
+      return {
+        title: s.name || "N/A",
+        url: s.url || "#",
+        snippet: `${(s.genres || []).slice(0, 2).join(", ")} · ${s.premiered ? s.premiered.split("-")[0] : ""}`
+      };
+    });
+    return { results, total: results.length, pages: 1 };
+  },
+  async themealdb(q, page) {
+    const r = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`);
+    const d = await r.json();
+    const meals = d.meals || [];
+    const results = meals.slice(0, PAGESIZE).map(m => ({
+      title: m.strMeal || "N/A",
+      url: m.strYoutube || "#",
+      snippet: `${m.strArea || ""} · ${m.strCategory || ""}`
+    }));
+    return { results, total: results.length, pages: 1 };
+  },
+  async dictionary(q, page) {
+    const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(q)}`);
+    const d = await r.json();
+    if (!Array.isArray(d) || !d.length) return { results: [], total: 0, pages: 0 };
+    const entry = d[0];
+    const meanings = entry.meanings || [];
+    const results = meanings.slice(0, PAGESIZE).map(m => ({
+      title: `${entry.word} (${m.partOfSpeech})`,
+      url: `https://en.wiktionary.org/wiki/${entry.word}`,
+      snippet: (m.definitions || [{}])[0]?.definition || ""
+    }));
+    return { results, total: results.length, pages: 1 };
+  },
+  async pokeapi(q, page) {
+    const offset = (page - 1) * PAGESIZE;
+    const r = await fetch(`https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=${PAGESIZE * 10}`);
+    const d = await r.json();
+    const all = d.results || [];
+    const filtered = all.filter(p => p.name.includes(q.toLowerCase()));
+    const results = filtered.slice(0, PAGESIZE).map(p => ({
+      title: p.name.replace(/-/g, " ").replace(/\w/g, c => c.toUpperCase()),
+      url: p.url,
+      snippet: ""
+    }));
+    return { results, total: filtered.length, pages: Math.max(1, Math.ceil(filtered.length / PAGESIZE)) };
+  },
+  async jokeapi(q, page) {
+    const categories = ["Programming", "Pun", "Dark", "Christmas"];
+    const cat = categories[(page - 1) % categories.length];
+    const r = await fetch(`https://v2.jokeapi.dev/joke/${cat}?amount=${PAGESIZE}`);
+    const d = await r.json();
+    const jokes = d.error ? [] : (d.jokes || [d]);
+    const results = jokes.map(j => ({
+      title: j.setup || j.joke || "N/A",
+      url: "#",
+      snippet: j.delivery || ""
+    }));
+    return { results, total: results.length, pages: categories.length };
+  },
+  async swapi(q, page) {
+    const resources = ["people", "films", "starships", "planets", "species", "vehicles"];
+    let allResults = [];
+    for (const resource of resources) {
+      try {
+        const r = await fetch(`https://swapi.dev/api/${resource}/?search=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        (d.results || []).forEach(item => {
+          if (!allResults.find(r => r.title === item.name)) {
+            allResults.push({
+              title: item.name || "N/A",
+              url: item.url || "#",
+              snippet: resource
+            });
+          }
+        });
+      } catch(e) {}
+    }
+    const results = allResults.slice((page-1)*PAGESIZE, page*PAGESIZE);
+    return { results, total: allResults.length, pages: Math.ceil(allResults.length / PAGESIZE) };
+  },
+  async openmeteo(q, page) {
+    try {
+      const geoR = await fetch(`https://photon.komoot.de/api/?q=${encodeURIComponent(q)}`);
+      const geoD = await geoR.json();
+      if (!geoD.features || !geoD.features.length) return { results: [], total: 0, pages: 0 };
+      const feat = geoD.features[0];
+      const lat = feat.geometry.coordinates[1];
+      const lon = feat.geometry.coordinates[0];
+      const name = feat.properties?.name || q;
+      const weatherR = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`);
+      const weatherD = await weatherR.json();
+      const c = weatherD.current || {};
+      const results = [{
+        title: `${name} 天气`,
+        url: `https://open-meteo.com/en/docs#latitude=${lat}&longitude=${lon}`,
+        snippet: `温度: ${c.temperature_2m}°C · 风速: ${c.wind_speed_10m}km/h · 湿度: ${c.relative_humidity_2m}%`
+      }];
+      return { results, total: 1, pages: 1 };
+    } catch(e) {
+      return { results: [], total: 0, pages: 0 };
+    }
+  },
+  async semanticscholar(q, page) {
+    try {
+      const r = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(q)}&limit=${PAGESIZE}&offset=${(page-1)*PAGESIZE}&fields=title,year,externalIds`);
+      const d = await r.json();
+      if (d.message === "Too Many Requests") return { results: [], total: 0, pages: 0, rateLimited: true };
+      const results = (d.data || []).map(i => ({ title: i.title || "N/A", url: `https://www.semanticscholar.org/paper/${i.paperId}`, snippet: i.year ? String(i.year) : "" }));
+      return { results, total: results.length, pages: 1 };
+    } catch(e) { return { results: [], total: 0, pages: 0, error: e.message }; }
+  },
+};
+
+document.addEventListener("DOMContentLoaded", function() {
+  if (window.__searchhub_init) return;
+  window.__searchhub_init = true;
+  const tabsEl = document.getElementById("catTabs");
+  tabsEl.innerHTML = '';
+  const container = document.getElementById("enginesContainer");
+  if (container) container.innerHTML = '';
+catOrder.forEach(cat => {
+  if (!categories.includes(cat)) return;
+  const btn = document.createElement("button");
+  btn.className = "cat-tab";
+  btn.textContent = cat;
+  btn.onclick = () => { document.querySelectorAll(".cat-tab").forEach(b => b.classList.remove("active")); btn.classList.add("active"); document.getElementById(`cat-${cat}`).scrollIntoView({ behavior: "smooth", block: "start" }); };
+  tabsEl.appendChild(btn);
+});
+
+catOrder.forEach(cat => {
+  const catEngines = engines.filter(e => e.category === cat);
+  if (!catEngines.length) return;
+  const section = document.createElement("section");
+  section.className = "cat-section";
+  section.id = `cat-${cat}`;
+  const title = document.createElement("h2");
+  title.className = "cat-title";
+  title.innerHTML = `${cat} <span class="cat-count">${catEngines.length}</span>`;
+  section.appendChild(title);
+  const grid = document.createElement("div");
+  grid.className = "engines-grid";
+  section.appendChild(grid);
+  container.appendChild(section);
+  catEngines.forEach(engine => {
+    const card = document.createElement("div");
+    card.className = "engine-card";
+    card.id = `card-${engine.name.replace(/\s+/g, "-")}`;
+    const apiLabel = engine.api ? '<span class="engine-tag">API 检索</span>' : '<span class="engine-tag" style="color:var(--color-muted)">直接跳转</span>';
+    card.innerHTML = `<div class="engine-name"><span class="engine-icon">${engine.icon}</span>${engine.name}</div><div class="engine-desc">${engine.desc}</div>${apiLabel}<div class="results-area" id="area-${engine.name.replace(/\s+/g, "-")}"><div class="results-content" id="content-${engine.name.replace(/\s+/g, "-")}"><div class="card-loading">点击搜索获取结果</div></div></div>`;
+    grid.appendChild(card);
+    card.addEventListener("click", async (e) => {
+      if (e.target.closest(".page-btn") || e.target.closest(".result-link")) return;
+      const q = document.getElementById("searchInput").value.trim();
+      if (!q) return;
+      if (engine.api) await searchEngine(engine.name, q, true);
+      else window.open(`https://${engine.name.toLowerCase().replace(/\s+/g, "")}.com/search?q=${encodeURIComponent(q)}`, "_blank");
+    });
+    state[engine.name] = { results: [], total: 0, pages: 0, page: 1, loading: false, currentQuery: "" };
+  });
+});
+
+async function searchEngine(name, query, scrollToCard = false) {
+  const engine = engines.find(e => e.name === name);
+  if (!engine || !engine.api) return;
+  const key = name.replace(/\s+/g, "-");
+  const area = document.getElementById(`area-${key}`);
+  const content = document.getElementById(`content-${key}`);
+  if (!area || !content) return;
+  area.classList.add("active");
+  if (scrollToCard) setTimeout(() => document.getElementById(`card-${key}`).scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+  const s = state[name];
+  s.loading = true; s.currentQuery = query; s.page = 1;
+  content.innerHTML = `<div class="card-loading">正在搜索 ${name}…</div>`;
+  try {
+    const data = await fetchers[engine.api](query, 1);
+    s.results = data.results || []; s.total = data.total || 0; s.pages = Math.min(data.pages || 1, 20); s.page = 1;
+  } catch (e) {
+    s.results = []; s.total = 0; s.pages = 0;
+    content.innerHTML = `<div class="card-error">搜索 ${name} 出错: ${esc(e.message)}</div>`; s.loading = false; return;
+  }
+  s.loading = false; renderResults(name);
+}
+
+function renderResults(name) {
+  const key = name.replace(/\s+/g, "-");
+  const content = document.getElementById(`content-${key}`);
+  if (!content) return;
+  const s = state[name];
+  if (!s.results.length && !s.loading) { content.innerHTML = `<div class="card-empty">未找到结果</div>`; return; }
+  if (s.loading) { content.innerHTML = `<div class="card-loading">搜索中…</div>`; return; }
+  let html = `<div class="result-list">`;
+  s.results.forEach(r => {
+    html += `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="result-link"><span class="r-title">${esc(r.title)}</span>${r.snippet ? `<span class="r-snippet">${esc(r.snippet)}</span>` : ""}</a>`;
+  });
+  html += `</div>`;
+  if (s.pages > 1) {
+    html += `<div class="pagination"><button class="page-btn" onclick="event.stopPropagation();goPage('${name}',${s.page-1})" ${s.page<=1?"disabled":""}>‹ 上一页</button><span class="page-info">第 ${s.page} / ${s.pages} 页 · ${s.total} 条</span><button class="page-btn" onclick="event.stopPropagation();goPage('${name}',${s.page+1})" ${s.page>=s.pages?"disabled":""}>下一页 ›</button></div>`;
+  }
+  content.innerHTML = html;
+}
+
+async function goPage(name, page) {
+  const s = state[name];
+  if (!s || s.loading || page < 1) return;
+  const engine = engines.find(e => e.name === name);
+  if (!engine || !engine.api || !s.currentQuery) return;
+  const key = name.replace(/\s+/g, "-");
+  const content = document.getElementById(`content-${key}`);
+  s.page = page; s.loading = true;
+  content.innerHTML = `<div class="card-loading">加载中…</div>`;
+  try {
+    const data = await fetchers[engine.api](s.currentQuery, page);
+    s.results = data.results || []; s.total = data.total || 0; s.pages = Math.min(data.pages || 1, 20);
+  } catch(e) { content.innerHTML = `<div class="card-error">加载失败: ${esc(e.message)}</div>`; s.loading = false; return; }
+  s.loading = false; renderResults(name);
+}
+
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+document.getElementById("searchForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+  const q = document.getElementById("searchInput").value.trim();
+  if (!q) return;
+  engines.filter(e => e.api).forEach(engine => searchEngine(engine.name, q));
+});
+
+document.getElementById("searchInput").focus();
+});
+</script>
 </body>
 </html>
