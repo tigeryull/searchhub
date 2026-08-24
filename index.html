@@ -318,12 +318,17 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
       return { results, total, pages: Math.ceil(total / PAGESIZE) };
     },
     async internetarchive(q, page) {
-      const r = await fetch(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=title,identifier&rows=${PAGESIZE}&start=${(page-1)*PAGESIZE}&output=json`);
-      const d = await r.json();
-      const resp = d.response || {};
-      const total = resp.numFound || 0;
-      const results = (resp.docs || []).map(i => ({ title: i.title || "Untitled", url: `https://archive.org/details/${i.identifier}`, snippet: i.identifier }));
-      return { results, total, pages: Math.ceil(total / PAGESIZE) };
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000);
+        const r = await fetch(`https://archive.org/advancedsearch.php?q=${encodeURIComponent(q)}&fl[]=title,identifier&rows=${PAGESIZE}&start=${(page-1)*PAGESIZE}&output=json`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        const d = await r.json();
+        const resp = d.response || {};
+        const total = resp.numFound || 0;
+        const results = (resp.docs || []).map(i => ({ title: i.title || "Untitled", url: `https://archive.org/details/${i.identifier}`, snippet: i.identifier }));
+        return { results, total, pages: Math.ceil(total / PAGESIZE) };
+      } catch(e) { return { results: [], total: 0, pages: 0 }; }
     },
     async wikidata(q, page) {
       const offset = (page - 1) * PAGESIZE;
@@ -334,16 +339,17 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
       return { results, total, pages: Math.ceil(total / PAGESIZE) };
     },
     async clinicaltrials(q, page) {
-      const r = await fetch(`https://clinicaltrials.gov/api/v2/studies?query.term=${encodeURIComponent(q)}&pageSize=${PAGESIZE}&pageOffset=${(page-1)*PAGESIZE}&format=json`);
+      const r = await fetch(`https://clinicaltrials.gov/api/v2/studies?query.term=${encodeURIComponent(q)}&pageSize=${PAGESIZE}&format=json`);
       const d = await r.json();
-      const total = d.totalResults || 0;
-      const results = (d.studies || []).map(s => {
+      const studies = d.studies || [];
+      const total = studies.length || 0;
+      const results = studies.map(s => {
         const id = s.protocolSection?.identificationModule?.nctId || "";
         const title = s.protocolSection?.identificationModule?.briefTitle || "N/A";
         const conditions = s.protocolSection?.conditionsModule?.conditions || [];
         return { title, url: `https://clinicaltrials.gov/study/${id}`, snippet: conditions.join(", ").slice(0, 160) };
       });
-      return { results, total, pages: Math.ceil(total / PAGESIZE) };
+      return { results, total, pages: 1 };
     },
     async europepmc(q, page) {
       const r = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(q)}&format=json&resultType=core&pageSize=${PAGESIZE}&offset=${(page-1)*PAGESIZE}`);
@@ -377,9 +383,11 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
       return { results, total, pages: Math.ceil(total / PAGESIZE) };
     },
     async openalex(q, page) {
-      const offset = (page - 1) * PAGESIZE;
-      const r = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=${PAGESIZE}&page=${page}&sort=cited_by_count&order=desc`);
-      const d = await r.json();
+      const r = await fetch(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per_page=${PAGESIZE}&page=${page}&sort=cited_by_count&order=desc`).catch(() => null);
+      if (!r) return { results: [], total: 0, pages: 0 };
+      let d;
+      try { d = await r.json(); } catch { return { results: [], total: 0, pages: 0 }; }
+      if (d.error || (d.message && (d.message.includes("Rate limit") || d.message.includes("Insufficient")))) return { results: [], total: 0, pages: 0, rateLimited: true };
       const results = (d.results || []).map(i => ({
         title: i.display_name || i.title || "N/A",
         url: i.doi ? `https://doi.org/${i.doi}` : `https://openalex.org/${i.id}`,
@@ -491,8 +499,17 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
       const cat = cats[(page - 1) % cats.length];
       const r = await fetch(`https://v2.jokeapi.dev/joke/${cat}?amount=${PAGESIZE}`);
       const d = await r.json();
-      const jokes = d.error ? [] : (d.jokes || [d]);
-      const results = jokes.map(j => ({ title: j.setup || j.joke || "N/A", url: "#", snippet: j.delivery || "" }));
+      let jokes = [];
+      if (d.error) {
+        jokes = [];
+      } else if (d.type === "single") {
+        jokes = [{ setup: "", joke: d.joke || "N/A", delivery: "" }];
+      } else if (d.jokes && Array.isArray(d.jokes)) {
+        jokes = d.jokes;
+      } else {
+        jokes = [d];
+      }
+      const results = jokes.map(j => ({ title: j.joke || j.setup || "N/A", url: "#", snippet: j.delivery || "" }));
       return { results, total: results.length, pages: cats.length };
     },
     async swapi(q, page) {
@@ -514,13 +531,13 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
     },
     async openmeteo(q, page) {
       try {
-        const geoR = await fetch(`https://photon.komoot.de/api/?q=${encodeURIComponent(q)}`);
+        const geoR = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
         const geoD = await geoR.json();
-        if (!geoD.features || !geoD.features.length) return { results: [], total: 0, pages: 0 };
-        const feat = geoD.features[0];
-        const lat = feat.geometry.coordinates[1];
-        const lon = feat.geometry.coordinates[0];
-        const name = feat.properties?.name || q;
+        if (!geoD || !geoD.length) return { results: [], total: 0, pages: 0 };
+        const feat = geoD[0];
+        const lat = parseFloat(feat.lat);
+        const lon = parseFloat(feat.lon);
+        const name = feat.display_name?.split(",")[0] || q;
         const weatherR = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=auto`);
         const weatherD = await weatherR.json();
         const c = weatherD.current || {};
@@ -533,15 +550,17 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
       } catch(e) { return { results: [], total: 0, pages: 0 }; }
     },
     async semanticscholar(q, page) {
-      const r = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(q)}&limit=${PAGESIZE}&offset=${(page-1)*PAGESIZE}&fields=title,year,externalIds`);
-      const d = await r.json();
-      if (d.message === "Too Many Requests") return { results: [], total: 0, pages: 0 };
-      const results = (d.data || []).map(i => ({
-        title: i.title || "N/A",
-        url: i.externalIds?.DOI ? `https://doi.org/${i.externalIds.DOI}` : "#",
-        snippet: `${i.year || ""} · ⭐${i.citationCount || 0}`
-      }));
-      return { results, total: d.total || 0, pages: Math.ceil((d.total || 0) / PAGESIZE) };
+      try {
+        const r = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(q)}&limit=${PAGESIZE}&offset=${(page-1)*PAGESIZE}&fields=title,year,externalIds`);
+        const d = await r.json().catch(() => ({}));
+        if (d.message === "Too Many Requests" || d.code === 429) return { results: [], total: 0, pages: 0, rateLimited: true };
+        const results = (d.data || []).map(i => ({
+          title: i.title || "N/A",
+          url: i.externalIds?.DOI ? `https://doi.org/${i.externalIds.DOI}` : "#",
+          snippet: `${i.year || ""} · ⭐${i.citationCount || 0}`
+        }));
+        return { results, total: d.total || 0, pages: Math.ceil((d.total || 0) / PAGESIZE) };
+      } catch(e) { return { results: [], total: 0, pages: 0 }; }
     },
   };
 
