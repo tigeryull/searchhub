@@ -701,6 +701,16 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
   document.getElementById("searchInput").focus();
   buildTabs();
   buildCards();
+
+  // Visit counter
+  const ctrKey = "searchmax-visits-v2";
+  fetch("https://countapi.xyz/hit/" + ctrKey + "/visits")
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById("visitCount");
+      if (el && d.value) el.textContent = Number(d.value).toLocaleString();
+    })
+    .catch(() => {});
 })();
 </script>
 </body>
