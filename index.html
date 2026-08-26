@@ -85,6 +85,10 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
 /* ── Footer ── */
 .foot-mast { text-align: center; padding: var(--space-2xl) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); font-family: var(--font-label); }
 .foot-wordmark { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 600; color: var(--color-ink); letter-spacing: var(--tracking-tight); }
+.foot-counter { display: flex; align-items: center; justify-content: center; gap: var(--space-sm); margin-top: var(--space-md); }
+.foot-counter-icon { font-size: 1rem; }
+.foot-counter-num { font-family: var(--font-display); font-size: var(--text-sm); font-weight: 600; color: var(--color-accent); letter-spacing: var(--tracking-tight); }
+.foot-counter-label { font-family: var(--font-label); font-size: var(--text-xs); letter-spacing: var(--tracking-label); color: var(--color-muted); text-transform: uppercase; }
 
 /* ── Tablet: 1024px ── */
 @media (max-width: 1024px) {
@@ -185,6 +189,11 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
 <footer class="foot-mast">
   <span class="foot-wordmark">SearchMax</span>
   <span style="font-family:var(--font-label);font-size:var(--text-xs);color:var(--color-muted);letter-spacing:var(--tracking-label);margin-left:8px;">V0.1</span>
+  <div class="foot-counter">
+    <span class="foot-counter-icon">👁</span>
+    <span class="foot-counter-num" id="visitCount">--</span>
+    <span class="foot-counter-label">次访问</span>
+  </div>
 </footer>
 
 <script data-cfasync="false">
