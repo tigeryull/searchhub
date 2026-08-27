@@ -702,14 +702,46 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-lg) var(--space
   buildTabs();
   buildCards();
 
-  // Visit counter (localStorage)
+  // Visit counter via hits.sh
   (function() {
-    const KEY = "searchmax_visits";
-    let count = parseInt(localStorage.getItem(KEY) || "0", 10);
-    count++;
-    localStorage.setItem(KEY, count);
     const el = document.getElementById("visitCount");
-    if (el) el.textContent = count.toLocaleString();
+    const KEY = "searchmax_visits_cache";
+    const cached = localStorage.getItem(KEY);
+    const cacheTime = parseInt(localStorage.getItem(KEY + "_time") || "0");
+    const now = Date.now();
+    // Use cached value if less than 5 minutes old
+    if (cached && (now - cacheTime) < 300000) {
+      if (el) el.textContent = Number(cached).toLocaleString();
+      return;
+    }
+    // Try fetching via allorigins CORS proxy
+    fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent("https://hits.sh/search.ibemax.com.svg"))
+      .then(r => r.text())
+      .then(svg => {
+        const m = svg.match(/aria-label="hits:\s*(\d+)/);
+        if (m && el) {
+          const count = Number(m[1]);
+          el.textContent = count.toLocaleString();
+          localStorage.setItem(KEY, count);
+          localStorage.setItem(KEY + "_time", now.toString());
+        }
+      })
+      .catch(() => {
+        // Fallback: localStorage only
+        try {
+          let count = parseInt(localStorage.getItem("searchmax_visits") || "0", 10) + 1;
+          localStorage.setItem("searchmax_visits", count);
+          localStorage.setItem(KEY, count);
+          localStorage.setItem(KEY + "_time", now.toString());
+          if (el) el.textContent = count.toLocaleString();
+        } catch(e) {}
+      });
+    // Increment our own counter as backup
+    try {
+      let c = parseInt(localStorage.getItem("searchmax_visits") || "0", 10) + 1;
+      localStorage.setItem("searchmax_visits", c);
+      if (el) el.textContent = c.toLocaleString();
+    } catch(e) {}
   })();
 })();
 </script>
